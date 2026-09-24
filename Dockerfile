@@ -3,7 +3,7 @@ WORKDIR /app
 
 # Install dependencies first (layer cached until package.json changes)
 COPY package*.json ./
-RUN npm ci --production
+RUN npm ci --omit=dev
 
 # Copy Prisma schema and generate client
 COPY prisma ./prisma/
@@ -24,4 +24,4 @@ EXPOSE 3000
 # is always up-to-date on container start. This is idempotent — it only
 # applies pending migrations. Without this, any schema change requires manual
 # intervention and the server crashes on first Prisma query after a migration.
-CMD ["sh", "-c", "npx prisma migrate deploy && node index.js"]
+CMD ["node", "index.js"]

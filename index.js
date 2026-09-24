@@ -327,6 +327,24 @@ server.on('error', (e) => {
   }
 });
 
+let shuttingDown = false;
+async function shutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`[shutdown] ${signal} received; closing server`);
+
+  io.close();
+  server.close(async () => {
+    await prisma.$disconnect();
+    process.exit(0);
+  });
+
+  setTimeout(() => process.exit(1), 10000).unref();
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
 server.listen(PORT, () => {
   const baseUrl = process.env.APP_URL || `http://localhost:${PORT}`;
   console.log(`✅  Nexus Voice backend running in ${process.env.NODE_ENV || 'development'} mode at ${baseUrl}`);
