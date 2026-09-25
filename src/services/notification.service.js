@@ -1,5 +1,9 @@
 /**
- * Notification Service
+ * Notification Service - Push Messaging Stub
+ *
+ * Firebase Cloud Messaging has been replaced with a local stub implementation.
+ * Push notifications are logged to console instead of being sent to devices.
+ * All notification data is still saved to the database as before.
  *
  * FIX C-04: Added all missing NotificationType enum values used across the codebase.
  *           The service now maps unknown types to 'SYSTEM' to prevent Prisma enum errors.
@@ -9,7 +13,6 @@
  */
 
 const prisma = require('../prismaClient');
-const { messaging } = require('../config/firebase.config');
 
 const BATCH_SIZE = 500;
 
@@ -57,9 +60,11 @@ function serializeFcmData(data = {}) {
   return result;
 }
 
-async function sendPushNotification(userId, type, titleAr, bodyAr, data = {}) {
-  const safeType = safeNotificationType(type);
-
+/**
+ * Stub implementation of push notification sending.
+ * Logs notification details to console instead of sending via FCM.
+ */
+async function sendPushNotificationStub(userId, type, titleAr, bodyAr, data = {}) {
   const tokens = await prisma.deviceToken
     .findMany({ where: { userId, isActive: true }, select: { token: true } })
     .then((rows) => rows.map((r) => r.token));
@@ -70,42 +75,21 @@ async function sendPushNotification(userId, type, titleAr, bodyAr, data = {}) {
     click_action: 'FLUTTER_NOTIFICATION_CLICK',
   };
 
-  if (tokens.length && messaging) {
-    const message = {
+  if (tokens.length > 0) {
+    console.log('[Push Notification Stub]', {
+      userId,
+      tokenCount: tokens.length,
       notification: { title: titleAr, body: bodyAr },
       data: fcmData,
-      android: { priority: 'high', notification: { sound: 'default', channelId: 'main' } },
-      apns: { payload: { aps: { sound: 'default', badge: 1 } } },
-      tokens,
-    };
-    try {
-      const response = await messaging.sendEachForMulticast(message);
-      const invalidTokens = [];
-      response.responses.forEach((resp, index) => {
-        if (!resp.success) {
-          const err = resp.error;
-          if (
-            err &&
-            [
-              'messaging/invalid-registration-token',
-              'messaging/registration-token-not-registered',
-              'messaging/invalid-argument',
-            ].includes(err.code)
-          ) {
-            invalidTokens.push(tokens[index]);
-          }
-        }
-      });
-      if (invalidTokens.length) {
-        await prisma.deviceToken.updateMany({
-          where: { token: { in: invalidTokens } },
-          data: { isActive: false },
-        });
-      }
-    } catch (error) {
-      console.error('FCM sendEachForMulticast failed:', error.message);
-    }
+    });
   }
+}
+
+async function sendPushNotification(userId, type, titleAr, bodyAr, data = {}) {
+  const safeType = safeNotificationType(type);
+
+  // Send stub push notification (logs to console)
+  await sendPushNotificationStub(userId, type, titleAr, bodyAr, data);
 
   // FIX C-04: use safeType to prevent Prisma enum error
   return prisma.notification.create({
@@ -129,46 +113,19 @@ async function sendToMultipleUsers(userIds, type, titleAr, bodyAr, data = {}) {
         .findMany({ where: { userId: { in: chunk }, isActive: true }, select: { token: true } })
         .then((rows) => rows.map((r) => r.token));
 
-      if (tokens.length && messaging) {
+      if (tokens.length > 0) {
         const fcmData = {
           type,
           ...serializeFcmData(data),
           click_action: 'FLUTTER_NOTIFICATION_CLICK',
         };
-        const payload = {
+
+        console.log('[Push Notification Stub - Multicast]', {
+          userCount: chunk.length,
+          tokenCount: tokens.length,
           notification: { title: titleAr, body: bodyAr },
           data: fcmData,
-          android: { priority: 'high', notification: { sound: 'default', channelId: 'main' } },
-          apns: { payload: { aps: { sound: 'default', badge: 1 } } },
-          tokens,
-        };
-        try {
-          const response = await messaging.sendEachForMulticast(payload);
-          const invalidTokens = [];
-          response.responses.forEach((resp, index) => {
-            if (!resp.success) {
-              const err = resp.error;
-              if (
-                err &&
-                [
-                  'messaging/invalid-registration-token',
-                  'messaging/registration-token-not-registered',
-                  'messaging/invalid-argument',
-                ].includes(err.code)
-              ) {
-                invalidTokens.push(tokens[index]);
-              }
-            }
-          });
-          if (invalidTokens.length) {
-            await prisma.deviceToken.updateMany({
-              where: { token: { in: invalidTokens } },
-              data: { isActive: false },
-            });
-          }
-        } catch (error) {
-          console.error('FCM multicast failed:', error.message);
-        }
+        });
       }
 
       // FIX H-05: use createMany instead of individual creates

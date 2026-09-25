@@ -50,13 +50,8 @@ function validateConfig() {
     errors.push('APP_URL must be configured in production');
   }
 
-  if (
-    isProd &&
-    !process.env.FIREBASE_SERVICE_ACCOUNT &&
-    !(process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY)
-  ) {
-    errors.push('Firebase service account credentials are required in production');
-  }
+  // Note: Firebase push notifications have been replaced with a local stub.
+  // No Firebase credentials are required.
 
   // FIX L-01: warn about default LiveKit credentials in deployed environments
   if (isDeployed) {

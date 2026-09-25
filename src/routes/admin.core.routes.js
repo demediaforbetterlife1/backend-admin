@@ -620,12 +620,28 @@ router.post('/notifications/send', requireAdmin, async (req, res) => {
 // GET /api/admin/gifts
 router.get('/gifts', requireAdmin, async (req, res) => {
   try {
-    const { category, enabled } = req.query;
+    const { category, enabled, q } = req.query;
     const where = {};
     if (category) where.category = category;
     if (enabled !== undefined) where.isActive = enabled === 'true';
+    if (q) {
+      where.OR = [
+        { name: { contains: q, mode: 'insensitive' } },
+        { nameAr: { contains: q, mode: 'insensitive' } },
+        { category: { contains: q, mode: 'insensitive' } },
+      ];
+    }
     const gifts = await prisma.gift.findMany({ where, orderBy: { createdAt: 'desc' } });
     res.json({ success: true, data: gifts });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// GET /api/admin/gifts/:id
+router.get('/gifts/:id', requireAdmin, async (req, res) => {
+  try {
+    const gift = await prisma.gift.findUnique({ where: { id: req.params.id } });
+    if (!gift) return res.status(404).json({ success: false, error: 'Gift not found' });
+    res.json({ success: true, data: gift });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
@@ -633,9 +649,25 @@ router.get('/gifts', requireAdmin, async (req, res) => {
 router.post('/gifts', requireAdmin, async (req, res) => {
   try {
     const { name, nameAr, animationUrl, thumbnailUrl, coinPrice, category, isActive, isVipOnly, isLegendary, comboCount, minTier } = req.body;
-    if (!name || !nameAr || !coinPrice) return res.status(400).json({ success: false, error: 'name, nameAr, coinPrice required' });
-    const gift = await prisma.gift.create({ data: { name, nameAr, animationUrl: animationUrl ?? '', thumbnailUrl: thumbnailUrl ?? '', coinPrice, category: category ?? 'regular', isActive: isActive ?? true, isVipOnly: isVipOnly ?? false, isLegendary: isLegendary ?? false, comboCount: comboCount ?? 3, minTier: minTier ?? null } });
-    await audit(req, 'CREATE_GIFT', 'gift', gift.id, { name });
+    if (!name || coinPrice === undefined || coinPrice === null) {
+      return res.status(400).json({ success: false, error: 'name and coinPrice required' });
+    }
+    const gift = await prisma.gift.create({
+      data: {
+        name,
+        nameAr: nameAr || name,
+        animationUrl: animationUrl ?? '',
+        thumbnailUrl: thumbnailUrl ?? '',
+        coinPrice: parseInt(coinPrice, 10),
+        category: category ?? 'regular',
+        isActive: isActive !== undefined ? Boolean(isActive) : true,
+        isVipOnly: isVipOnly !== undefined ? Boolean(isVipOnly) : false,
+        isLegendary: isLegendary !== undefined ? Boolean(isLegendary) : false,
+        comboCount: comboCount ? parseInt(comboCount, 10) : 3,
+        minTier: minTier ?? null,
+      },
+    });
+    await audit(req, 'CREATE_GIFT', 'gift', gift.id, { name, coinPrice });
     res.status(201).json({ success: true, data: gift });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
@@ -643,16 +675,19 @@ router.post('/gifts', requireAdmin, async (req, res) => {
 // PATCH /api/admin/gifts/:id
 router.patch('/gifts/:id', requireAdmin, async (req, res) => {
   try {
-    const { name, nameAr, animationUrl, thumbnailUrl, coinPrice, category, isActive, isVipOnly } = req.body;
+    const { name, nameAr, animationUrl, thumbnailUrl, coinPrice, category, isActive, isVipOnly, isLegendary, comboCount, minTier } = req.body;
     const data = {};
     if (name          !== undefined) data.name          = name;
     if (nameAr        !== undefined) data.nameAr        = nameAr;
     if (animationUrl  !== undefined) data.animationUrl  = animationUrl;
     if (thumbnailUrl  !== undefined) data.thumbnailUrl  = thumbnailUrl;
-    if (coinPrice     !== undefined) data.coinPrice     = coinPrice;
+    if (coinPrice     !== undefined) data.coinPrice     = parseInt(coinPrice, 10);
     if (category      !== undefined) data.category      = category;
-    if (isActive      !== undefined) data.isActive      = isActive;
-    if (isVipOnly     !== undefined) data.isVipOnly     = isVipOnly;
+    if (isActive      !== undefined) data.isActive      = Boolean(isActive);
+    if (isVipOnly     !== undefined) data.isVipOnly     = Boolean(isVipOnly);
+    if (isLegendary   !== undefined) data.isLegendary   = Boolean(isLegendary);
+    if (comboCount    !== undefined) data.comboCount    = parseInt(comboCount, 10);
+    if (minTier       !== undefined) data.minTier       = minTier;
     const gift = await prisma.gift.update({ where: { id: req.params.id }, data });
     await audit(req, 'UPDATE_GIFT', 'gift', req.params.id, data);
     res.json({ success: true, data: gift });

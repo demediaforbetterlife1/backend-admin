@@ -27,7 +27,6 @@
     "dotenv": "^16.1.4",
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
-    "firebase-admin": "^12.0.0",
     "googleapis": "^173.0.0",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.3",
