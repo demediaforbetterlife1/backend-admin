@@ -1,4 +1,4 @@
-app = "demedia-back-end"
+app = "voicechat-backend"
 primary_region = "iad"
 
 [build]

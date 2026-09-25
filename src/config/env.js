@@ -66,11 +66,13 @@ function validateConfig() {
     }
   }
 
-  if (isProd) {
-    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
-      errors.push('CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET are required in production');
-    }
-  }
+  // Note: Cloudinary is optional - only needed if using file uploads
+  // Uncomment to make it required:
+  // if (isProd) {
+  //   if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+  //     errors.push('CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET are required in production');
+  //   }
+  // }
 
   if (errors.length > 0) {
     const message = `Configuration errors:\n- ${errors.join('\n- ')}`;

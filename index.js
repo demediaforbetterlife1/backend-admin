@@ -88,6 +88,10 @@ const corsOrigins = getCorsOrigins();
 
 // ─── Express app ─────────────────────────────────────────────────────────────
 const app = express();
+
+// Trust proxy — required when behind Fly.io reverse proxy for rate limiting
+app.set('trust proxy', 1);
+
 // CORS — must come before any route handler so OPTIONS preflight gets handled.
 //
 // allowedHeaders must include every header the clients send:
