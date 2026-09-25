@@ -8,7 +8,10 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'app.db');
+// FIX: Use /tmp in production (Fly.io) since app directory is read-only
+const DB_PATH = process.env.DB_PATH || (process.env.NODE_ENV === 'production' 
+  ? '/tmp/app.db' 
+  : path.join(__dirname, '..', 'data', 'app.db'));
 
 const fs = require('fs');
 const dataDir = path.dirname(DB_PATH);
